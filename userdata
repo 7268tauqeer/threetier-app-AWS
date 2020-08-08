@@ -1,0 +1,5 @@
+#!/bin/bash
+echo '{"watch": false}' > config.json
+sudo nodemon --config config.json /home/ec2-user/node_project/src/index.js </dev/null &
+sudo touch /tmp/successfull
+

@@ -1,0 +1,86 @@
+---
+- hosts: dev
+  become: yes
+  remote_user: ec2-user
+  vars:
+    db_user:  "{{ lookup('env','TF_VAR_dbuser') }}"
+    db_password: "{{ lookup('env','TF_VAR_dbpassword') }}"
+  
+
+  tasks:
+    - include_vars: db_info.yml
+    - include_vars: s3_info.yml
+    - name: Download npm package installation script
+      get_url:
+        url: https://rpm.nodesource.com/setup_10.x
+        dest: /home/ec2-user/node_install.sh
+        mode: '0644'
+
+    - name: Install npm 
+      command: sh /home/ec2-user/node_install.sh
+
+    - name: Install required packages
+      yum: name={{ item }} state=present
+      with_items:
+      - git
+      - mysql
+      - nodejs
+
+    - name: clone nodejs_crud project repo
+      git:
+        repo: https://github.com/7268tauqeer/nodejs-mysql-crud.git
+        dest: /home/ec2-user/node_project_original
+    
+    - name: Creates directory
+      file:
+        path: /home/ec2-user/node_project
+        state: directory
+
+    - name: Move directory contents
+      command: cp -r /home/ec2-user/node_project_original/. /home/ec2-user/node_project/
+
+    - name: Install node dependencies
+      npm: 
+        path: /home/ec2-user/node_project
+
+    - name: Install nodemon globally
+      npm:
+        name: nodemon
+        global: yes
+
+    - name: updating db host
+      lineinfile:
+        path: /home/ec2-user/node_project/src/index.js
+        regexp: '^    host'
+        line: "    host: '{{ rds_endpoint }}',"
+
+    - name: updating db user
+      lineinfile:
+        path: /home/ec2-user/node_project/src/index.js
+        regexp: '^    user'
+        line: "    user: '{{ db_user }}',"
+
+    - name: updating db password
+      lineinfile:
+        path: /home/ec2-user/node_project/src/index.js
+        regexp: '^    password'
+        line: "    password: '{{ db_password }}',"
+
+    - name: Remove .git 
+      command: rm -rf /home/ec2-user/node_project/.git
+
+    - name: pushing code to s3
+      command: /usr/bin/aws s3 sync /home/ec2-user/node_project/  s3://{{ s3_bucket }} 
+
+    - command: sh /home/ec2-user/db_initialize.sh
+
+    
+
+    - name: Starting node server
+      shell: "(nodemon /home/ec2-user/node_project/src/index.js)"
+      async: 10
+      poll: 0
+    
+    
+        
+    

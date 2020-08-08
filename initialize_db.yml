@@ -1,0 +1,23 @@
+- hosts: dev
+  become: yes
+  remote_user: ec2-user
+ 
+
+  tasks:
+  - include_vars: db_info.yml
+  - name: create bash script to load db 
+    file:
+      path: /home/ec2-user/db_initialize.sh
+      state: touch
+      mode: '0644'
+
+  - name: copy script
+    copy:
+      content: | 
+                mysql -h {{ rds_endpoint }} -u {{ lookup('env','TF_VAR_dbuser') }} -p{{ lookup('env','TF_VAR_dbpassword') }}  </home/ec2-user/node_project/database/db.sql
+                touch /tmp/successfull
+      dest: /home/ec2-user/db_initialize.sh
+
+    
+  
+  

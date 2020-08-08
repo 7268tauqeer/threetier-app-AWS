@@ -1,4 +1,3 @@
-# threetier-app-AWS
 Pre-Req
 1- Authentication:
     A- Create IAM user with appropriate permission and save keys in Jenkins credentials
